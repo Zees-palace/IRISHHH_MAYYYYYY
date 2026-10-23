@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ArrowDown, Heart, Sparkles, PartyPopper, Star, Music2 } from 'lucide-react';
-import { playBirthday, playPop, playBlower, playAirhorn, playBoing, playBonk, playSqueak, playTada, playDrumroll, playWhoosh, playChop, playSadTrombone, playFunny, startBelly, setMuted } from './sounds.js';
+import { playBirthday, playPop, playBlower, playAirhorn, playBoing, playBonk, playSqueak, playTada, playDrumroll, playWhoosh, playChop, playSadTrombone, playFunny, startBelly, setMuted, unlockAudio, audioReady } from './sounds.js';
 import './styles.css';
 
 // ✨ PERSONALIZE THIS FILE: replace the name, captions, letter, and surprise notes.
@@ -9,7 +9,7 @@ const CONFIG = {
   friendName: 'IRISH MAAYYYYYY',
   shortName: 'Aiiiiiiiiiiii',
   birthdayLine: 'Today is all about celebrating YOU.',
-  letter: `Some people make ordinary days feel a little brighter just by being themselves. You’re one of those people.\\n\\nThank you for the laughs, the random conversations, the memories, and all the little moments that somehow become the best stories. I hope this next chapter brings you new places to explore, reasons to laugh until your stomach hurts, and people who show up for you the way you show up for them.\\n\\nKeep being wonderfully, unapologetically you. You deserve a year full of good surprises and more Beer.🍻 💛`,
+  letter: `Some people make ordinary days feel a little brighter just by being themselves. You’re one of those people.\\n\\nThank you for the laughs, the random conversations, the memories, and all the little moments that somehow become the best stories. I hope this next chapter brings you new places to explore, reasons to laugh until your stomach hurts, and people who show up for you the way you show up for them.\\n\\nKeep being wonderfully, unapologetically you. You deserve a year full of good surprises and more Beers.🍻 💛`,
   photos: [
     { src: `${import.meta.env.BASE_URL}assets/memory-1.jpg`, shape: 'circle', caption: 'A moment worth keeping', tag: 'THE GOOD DAYS' },
     { src: `${import.meta.env.BASE_URL}assets/memory-2.jpg`, shape: 'polaroid', caption: 'Proof we have no chill', tag: 'CORE MEMORY' },
@@ -250,6 +250,14 @@ function App() {
   const [musicOn, setMusicOn] = useState(true); // sound on by default; toggle mutes
 
   useEffect(() => { setMuted(!musicOn); }, [musicOn]);
+  useEffect(() => { // unlock sound on the first tap (needed on phones), and again if the tab comes back
+    const evs = ['touchend', 'pointerdown', 'click', 'keydown'];
+    const go = () => { unlockAudio(); if (audioReady()) evs.forEach(e => window.removeEventListener(e, go)); };
+    evs.forEach(e => window.addEventListener(e, go, { passive: true }));
+    const vis = () => { if (!document.hidden) unlockAudio(); };
+    document.addEventListener('visibilitychange', vis);
+    return () => { evs.forEach(e => window.removeEventListener(e, go)); document.removeEventListener('visibilitychange', vis); };
+  }, []);
   useEffect(() => {
     let alive = true;
     Promise.all(Array.from({ length: 14 }, (_, k) => probeRain(k + 7))).then(list => {
@@ -367,7 +375,7 @@ function App() {
         <div className="letter-top"><span>✉ A NOTE FOR YOU</span><span>OPEN WHENEVER</span></div>
         <h2>A little reminder<br/>of how <em>special</em> you are.</h2>
         <div className="letter-body">{CONFIG.letter.split('\\n\\n').map((p, i) => <p key={i}>{p}</p>)}</div>
-        <div className="letter-signoff">Big hugs & birthday cake, <span>your friend ♡</span></div>
+        <div className="letter-signoff">Big hugs & birthday cake, <span>your friend Zeeeeee !!!♡</span></div>
         <div className="letter-stamp">JUST<br/>FOR YOU<br/><Heart size={20} fill="currentColor"/></div>
       </div>
       <div className="letter-flower">✿</div>

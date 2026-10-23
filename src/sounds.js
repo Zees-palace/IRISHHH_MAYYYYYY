@@ -2,6 +2,35 @@
 let ctx, muted = false;
 export const setMuted = v => { muted = v; };
 const ac = () => { ctx ||= new (window.AudioContext || window.webkitAudioContext)(); if (ctx.state === 'suspended') ctx.resume(); return ctx; };
+// everything goes through one master gain + compressor: louder on phone speakers, no clipping
+let master;
+function dest() {
+  const a = ac();
+  if (!master) { const c = a.createDynamicsCompressor(), g = a.createGain(); g.gain.value = 1.6; g.connect(c); c.connect(a.destination); master = g; }
+  return master;
+}
+
+// Phones only allow audio after a tap, and iOS also needs a "playback" session so the silent switch doesn't mute us.
+let silentEl;
+export const audioReady = () => ctx?.state === 'running';
+export function unlockAudio() {
+  try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+  try {
+    const a = ac(), b = a.createBuffer(1, 1, 22050), src = a.createBufferSource();
+    src.buffer = b; src.connect(a.destination); src.start(0);
+  } catch (e) {}
+  try {
+    if (!silentEl) { // 0.5s of silent 8-bit WAV, looped, flips iOS into playback mode
+      const n = 4000, buf = new Uint8Array(44 + n), dv = new DataView(buf.buffer), w = (o, t) => [...t].forEach((c, i) => dv.setUint8(o + i, c.charCodeAt(0)));
+      w(0, 'RIFF'); dv.setUint32(4, 36 + n, true); w(8, 'WAVEfmt '); dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true);
+      dv.setUint32(24, 8000, true); dv.setUint32(28, 8000, true); dv.setUint16(32, 1, true); dv.setUint16(34, 8, true); w(36, 'data'); dv.setUint32(40, n, true);
+      buf.fill(128, 44);
+      silentEl = new Audio(URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }))); silentEl.loop = true;
+    }
+    silentEl.play().catch(() => {});
+  } catch (e) {}
+}
+
 const rand = a => a[Math.floor(Math.random() * a.length)];
 
 // tone(type, [[time, freq], ...], duration, volume, delay, [filterType, freq, Q])
@@ -18,7 +47,7 @@ function tone(type, pts, dur, vol = .25, delay = 0, filt) {
   g.gain.exponentialRampToValueAtTime(.001, t + dur);
   let n = o;
   if (filt) { const f = a.createBiquadFilter(); f.type = filt[0]; f.frequency.value = filt[1]; f.Q.value = filt[2] || 1; o.connect(f); n = f; }
-  n.connect(g).connect(a.destination);
+  n.connect(g).connect(dest());
   o.start(t); o.stop(t + dur + .02);
 }
 
@@ -32,7 +61,7 @@ function noise(dur, vol = .4, ft = 'lowpass', f0 = 2000, f1 = f0, delay = 0, q =
   s.buffer = buf; f.type = ft; f.Q.value = q;
   f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(f1, t + dur);
   g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.001, t + dur);
-  s.connect(f).connect(g).connect(a.destination); s.start(t);
+  s.connect(f).connect(g).connect(dest()); s.start(t);
 }
 
 // ---------- the classics ----------
